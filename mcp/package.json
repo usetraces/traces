@@ -1,0 +1,10 @@
+{
+  "name": "traces-mcp-agents",
+  "private": true,
+  "type": "module",
+  "description": "Provider-agnostic (OpenRouter / Ollama) sourcing agents for the traces MCP",
+  "dependencies": {
+    "openai": "^6.0.0",
+    "zod": "^4.4.3"
+  }
+}

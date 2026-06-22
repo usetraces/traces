@@ -1,0 +1,16 @@
+# secrets
+.env
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+build/
+dist/
+
+# node
+node_modules/
+
+# os / editor
+.DS_Store
