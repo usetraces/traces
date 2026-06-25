@@ -16,6 +16,7 @@ dependencies = [
 traces-mcp = "traces_mcp.mcp_server:main"
 traces-serve = "traces_mcp.app:main"
 traces-eval = "traces_mcp.eval:main"
+traces-bench = "traces_mcp.bench:main"
 
 [build-system]
 requires = ["hatchling"]
