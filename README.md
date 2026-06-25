@@ -106,6 +106,35 @@ uv run traces-eval --src-only # netlist checks only (no tool-calling needed)
 Verified end-to-end against local `gemma4` via Ollama — both the SRC checks and
 JLCPCB/Digi-Key/Mouser sourcing pass with no OpenRouter key.
 
+### Benchmark
+
+Rank the local model against a set of OpenRouter models on accuracy, speed, and
+price. Each model runs the JLCPCB sourcing agent (no supplier key needed) over a
+small fixed case set, several trials each:
+
+```bash
+uv run traces-bench               # local gemma4 + 5 OpenRouter models, 3 trials
+uv run traces-bench --trials 1    # quick pass
+uv run traces-bench --no-local    # OpenRouter models only
+```
+
+Latest run — 6 models × 3 cases × 3 trials = 54 sourcing calls (JLCPCB):
+
+| Model | Accuracy | Median speed | Avg $/run | Fails |
+|---|---|---|---|---|
+| `google/gemini-3.1-flash-lite` (shipped default) | 100% | 5.6s | $0.00059 | 0/9 |
+| `anthropic/claude-haiku-4.5` | 100% | 7.4s | $0.00394 | 0/9 |
+| `qwen/qwen3-235b-a22b-2507` | 100% | 8.0s | $0.00018 | 0/9 |
+| `openai/gpt-5-mini` | 100% | 20.9s | $0.00240 | 0/9 |
+| `ollama/gemma4` (local) | 100% | 44.7s | $0.00000 | 0/9 |
+| `google/gemini-3.5-flash` | 44% | 18.8s | $0.00796 | 0/9 |
+
+Takeaways: the shipped default (`gemini-3.1-flash-lite`) is both the fastest and
+the most accurate cloud option; `qwen3-235b` is nearly as good for ~3× less; the
+local `gemma4` matches on accuracy at $0 but is ~8× slower. Accuracy here is a
+keyword + footprint match proxy, not a guarantee of the optimal part — edit the
+model list, cases, and trial count at the top of `mcp/src/traces_mcp/bench.py`.
+
 ---
 
 ## 2. kicad extension
