@@ -111,6 +111,72 @@ def _update_env():
 BACKEND_URL = "http://127.0.0.1:8000"
 
 
+def _server_alive(timeout=1.5):
+    """True if the local traces server answers /health."""
+    try:
+        with urlopen(Request(f"{BACKEND_URL}/health"), timeout=timeout) as resp:
+            return resp.status == 200
+    except Exception:
+        return False
+
+
+def _find_mcp_dir():
+    """Locate the traces `mcp/` dir (which holds pyproject + traces-serve).
+
+    The installer writes its absolute path into a `traces_server_path` sidecar
+    next to this plugin; fall back to a couple of common clone locations."""
+    sidecar = Path(__file__).with_name("traces_server_path")
+    try:
+        p = Path(sidecar.read_text().strip())
+        if (p / "pyproject.toml").exists():
+            return p
+    except Exception:
+        pass
+    for guess in (
+        Path.home() / "Documents" / "git" / "traces" / "mcp",
+        Path.home() / "traces" / "mcp",
+        Path.home() / "src" / "traces" / "mcp",
+    ):
+        if (guess / "pyproject.toml").exists():
+            return guess
+    return None
+
+
+def _ensure_server(wait=20):
+    """Start the local traces server if it isn't already running.
+
+    Spawns `uv run traces-serve` (detached) in the mcp dir using a clean env,
+    then polls /health for up to `wait` seconds. Returns True if the server is
+    reachable by the end, False otherwise (the caller can warn but still open).
+    """
+    if _server_alive():
+        return True
+    mcp_dir = _find_mcp_dir()
+    if mcp_dir is None:
+        return False
+    env = _update_env()
+    uv = shutil.which("uv", path=env["PATH"])
+    if not uv:
+        return False
+    try:
+        subprocess.Popen(
+            [uv, "run", "traces-serve"],
+            cwd=str(mcp_dir),
+            env=env,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,  # survive KiCad / detach from the plugin
+        )
+    except Exception:
+        return False
+    deadline = time.time() + wait
+    while time.time() < deadline:
+        if _server_alive():
+            return True
+        time.sleep(0.5)
+    return False
+
+
 class AuthManager:
     """Local no-op stand-in for the old hosted auth.
 
@@ -517,7 +583,6 @@ MOUSER_DATASHEET_URL = f"{BACKEND_URL}/jobs/mouser/datasheet"
 MOUSER_SOURCE_URL = f"{BACKEND_URL}/jobs/mouser/source"
 MOUSER_SEARCH_URL = f"{BACKEND_URL}/jobs/mouser/search"
 DATASHEET_FETCH_URL = f"{BACKEND_URL}/jobs/datasheet/fetch"
-MODEL_URL = f"{BACKEND_URL}/model"
 NETLIST_TYPO_URL = f"{BACKEND_URL}/jobs/netlist/typo"
 NETLIST_CONSISTENCY_URL = f"{BACKEND_URL}/jobs/netlist/consistency"
 NETLIST_ORPHAN_URL = f"{BACKEND_URL}/jobs/netlist/orphan"
@@ -840,12 +905,6 @@ class PropEditorDialog(wx.Dialog):
         bottom = wx.BoxSizer(wx.HORIZONTAL)
         self.status_text = wx.StaticText(self, label="")
         bottom.Add(self.status_text, 1, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 16)
-        # Which LLM is answering (cloud vs local + model). Fetched from the
-        # local server's /model endpoint right after the window opens.
-        self.model_text = wx.StaticText(self, label="Model: …")
-        self.model_text.SetForegroundColour(wx.Colour(120, 120, 120))
-        bottom.Add(self.model_text, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 12)
-        threading.Thread(target=self._refresh_model_label, daemon=True).start()
         self.btn_update = wx.Button(self, label="Update")
         self.btn_update.Bind(wx.EVT_BUTTON, self._on_update_clicked)
         self.btn_update.Hide()
@@ -2547,17 +2606,6 @@ class PropEditorDialog(wx.Dialog):
     # Search helpers
     # ------------------------------------------------------------------
 
-    def _refresh_model_label(self):
-        """Fetch the active model (cloud vs local + name) from the local server
-        and show it in the footer. Runs on a daemon thread at startup."""
-        try:
-            with urlopen(Request(MODEL_URL), timeout=6) as resp:
-                info = json.loads(resp.read().decode())
-            label = info.get("label") or "unknown"
-        except Exception:
-            label = "server offline"
-        wx.CallAfter(self.model_text.SetLabel, f"Model: {label}")
-
     @staticmethod
     def _model_suffix(result):
         """' · <model label>' for a job result that reports which model answered."""
@@ -3781,6 +3829,19 @@ class SchematicPropertyEditor(pcbnew.ActionPlugin):
                 "traces",
             )
             return
+
+        # Start the local sourcing server if it isn't already up.
+        if not _server_alive():
+            busy = wx.BusyCursor()
+            started = _ensure_server()
+            del busy
+            if not started:
+                wx.MessageBox(
+                    "Could not reach or start the local traces server at "
+                    f"{BACKEND_URL}.\n\nStart it manually with:\n"
+                    "    cd traces/mcp && uv run traces-serve",
+                    "traces",
+                )
 
         project_folder = Path(board.GetFileName()).parent
         sch_files = list(project_folder.glob("*.kicad_sch"))

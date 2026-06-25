@@ -33,9 +33,14 @@ mkdir -p "$PLUGIN_DIR"
 cp "$SCRIPT_DIR/traces.py" "$SCRIPT_DIR/traces.png" "$PLUGIN_DIR"
 rm -rf "$PLUGIN_DIR/__pycache__"
 
+# Record where the mcp server lives so the plugin can auto-start it.
+MCP_DIR="$(cd "$SCRIPT_DIR/../mcp" && pwd)"
+printf '%s\n' "$MCP_DIR" > "$PLUGIN_DIR/traces_server_path"
+
 echo "Installed traces KiCad plugin to $PLUGIN_DIR"
 echo
 echo "Next steps:"
-echo "  1. Start the server:  (cd ../mcp && uv run traces-serve)"
-echo "  2. Restart KiCad so it loads the plugin."
-echo "  3. PCB Editor -> Tools -> External Plugins -> traces."
+echo "  1. Restart KiCad so it loads the plugin."
+echo "  2. PCB Editor -> Tools -> External Plugins -> traces."
+echo "     (The plugin auto-starts the local server; or run it yourself with"
+echo "      'cd ../mcp && uv run traces-serve'.)"
