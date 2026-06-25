@@ -12,23 +12,29 @@ There are three tools:
 
 ## Setup
 
+One command installs all three tools (server, KiCad plugin, `/src` skill):
+
 ```bash
 git clone https://github.com/usetraces/traces.git
 cd traces
-cp .env.example .env   # then fill in your keys
+./install.sh           # creates .env, installs deps; pulls a local model if no cloud key
 ```
+
+`./install.sh` creates `.env` for you. Add keys to it as needed, then re-run if
+you like — sourcing works against the local model with **no keys at all**. You
+can also install just one piece: `./install.sh mcp | kicad | skill`.
 
 All three tools read keys from the repo-root `.env`:
 
 | Key | Needed for |
 |---|---|
-| `OPENROUTER_API_KEY` | the LLM that interprets sourcing requests (required) |
+| `OPENROUTER_API_KEY` | cloud LLM for sourcing (optional — blank = fully local) |
 | `MOUSER_API_KEY` | Mouser sourcing |
 | `DIGIKEY_CLIENT_ID` / `DIGIKEY_CLIENT_SECRET` | Digi-Key sourcing |
 | _(none)_ | JLCPCB / LCSC sourcing works with no key |
 
-Prerequisites: [uv](https://docs.astral.sh/uv/), Node.js 20+, and KiCad (for the
-extension).
+Prerequisites: `./install.sh` auto-installs [uv](https://docs.astral.sh/uv/) and
+(for local mode) Ollama. You need Node.js 20+ and KiCad already present.
 
 ---
 
@@ -68,15 +74,17 @@ Override the model with `DEFAULT_MODEL` in `.env` (default
 
 ### Running fully local (no OpenRouter key)
 
-If `OPENROUTER_API_KEY` is blank, traces falls back to a local
-[Ollama](https://ollama.com) instance — no key, nothing leaves your machine.
-Pull a **tool-capable** model (sourcing uses function-calling), then point
-`OLLAMA_MODEL` at it:
+If `OPENROUTER_API_KEY` is blank — **or set but broken/unreachable** — traces
+automatically falls back to a local [Ollama](https://ollama.com) model. No key,
+nothing leaves your machine. The model is `OLLAMA_MODEL` (default `gemma4`).
+
+`./install.sh` sets this up for you: when there's no OpenRouter key it installs
+Ollama and pulls `OLLAMA_MODEL`. To do it by hand, or to use a different
+tool-capable model (sourcing uses function-calling):
 
 ```bash
 ollama pull gemma4        # verified; qwen2.5 / llama3.1 also work
-# leave OPENROUTER_API_KEY blank in .env
-echo "OLLAMA_MODEL=gemma4" >> .env
+# leave OPENROUTER_API_KEY blank in .env (OLLAMA_MODEL=gemma4 is the default)
 uv run traces-serve
 ```
 

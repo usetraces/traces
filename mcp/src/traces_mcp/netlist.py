@@ -7,10 +7,13 @@ so the only dependency is `requests`.
 """
 
 import json
+import logging
 
 import requests
 
-from .config import llm_settings
+from .config import describe_model, llm_provider_chain
+
+logger = logging.getLogger(__name__)
 
 _SCHEMA_HINT = (
     'Respond with ONLY a JSON object of the form '
@@ -20,24 +23,37 @@ _SCHEMA_HINT = (
 
 
 def _run_check(prompt: str, model: str | None = None) -> dict:
-    base_url, api_key, resolved = llm_settings(model)
-    resp = requests.post(
-        f"{base_url.rstrip('/')}/chat/completions",
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        },
-        json={
-            "model": resolved,
-            "messages": [{"role": "user", "content": f"{prompt}\n\n{_SCHEMA_HINT}"}],
-            "response_format": {"type": "json_object"},
-            "temperature": 0,
-        },
-        timeout=180,
-    )
-    if resp.status_code != 200:
-        raise RuntimeError(f"LLM error: {resp.status_code} - {resp.text}")
-    content = resp.json()["choices"][0]["message"]["content"]
+    providers = llm_provider_chain(model)
+    last_err: Exception | None = None
+    content: str | None = None
+    used_model: dict | None = None
+    for i, (base_url, api_key, resolved) in enumerate(providers):
+        try:
+            resp = requests.post(
+                f"{base_url.rstrip('/')}/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": resolved,
+                    "messages": [{"role": "user", "content": f"{prompt}\n\n{_SCHEMA_HINT}"}],
+                    "response_format": {"type": "json_object"},
+                    "temperature": 0,
+                },
+                timeout=180,
+            )
+            if resp.status_code != 200:
+                raise RuntimeError(f"LLM error: {resp.status_code} - {resp.text}")
+            content = resp.json()["choices"][0]["message"]["content"]
+            used_model = describe_model(base_url, resolved)
+            break
+        except Exception as exc:  # noqa: BLE001 — try the next provider in the chain
+            last_err = exc
+            if i + 1 < len(providers):
+                logger.warning("provider %s failed (%s); falling back to local model", base_url, exc)
+    if content is None:
+        raise RuntimeError(f"all LLM providers failed: {last_err}")
     try:
         data = json.loads(content)
     except json.JSONDecodeError:
@@ -51,7 +67,7 @@ def _run_check(prompt: str, model: str | None = None) -> dict:
             "message": str(i.get("message") or ""),
         }
         for i in issues
-    ]}
+    ], "model": used_model}
 
 
 def netlist_typo(xml: str, model: str | None = None) -> dict:

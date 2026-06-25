@@ -48,7 +48,7 @@ async def jlcpcb_search(description, footprint, max_price, min_qty, count=1, mod
         "jlcpcb_search",
         model,
     )
-    return {"candidates": [_candidate(c) for c in result.get("candidates", [])]}
+    return {"candidates": [_candidate(c) for c in result.get("candidates", [])], "model": result.get("_model")}
 
 
 async def jlcpcb_source(identifier, footprint, id_type="MPN", model=None):
@@ -60,6 +60,7 @@ async def jlcpcb_source(identifier, footprint, id_type="MPN", model=None):
         "qty": int(result.get("qty") or 0),
         "price": None if result.get("price") is None else float(result["price"]),
         "datasheet_url": str(result.get("datasheet_url", "") or ""),
+        "model": result.get("_model"),
     }
 
 
@@ -88,7 +89,7 @@ async def datasheet_fetch(lcsc: str, model=None) -> dict:
     if direct["url"]:
         return direct
     result = await run_node_agent("jlcpcb_agent.mjs", ["datasheet", lcsc], "datasheet_fetch", model)
-    return {"url": str(result.get("url") or ""), "lcsc": str(result.get("lcsc") or lcsc)}
+    return {"url": str(result.get("url") or ""), "lcsc": str(result.get("lcsc") or lcsc), "model": result.get("_model")}
 
 
 # --- Digi-Key ---------------------------------------------------------------
@@ -100,7 +101,7 @@ async def digikey_search(description, footprint, max_price, min_qty, count=1, mo
         "digikey_search",
         model,
     )
-    return {"candidates": [_candidate(c, digikey_api.datasheet_url) for c in result.get("candidates", [])]}
+    return {"candidates": [_candidate(c, digikey_api.datasheet_url) for c in result.get("candidates", [])], "model": result.get("_model")}
 
 
 async def digikey_source(search_terms, footprint, model=None):
@@ -117,6 +118,7 @@ async def digikey_source(search_terms, footprint, model=None):
         "qty": int(result.get("qty") or 0),
         "price": None if result.get("price") is None else float(result["price"]),
         "datasheet_url": url,
+        "model": result.get("_model"),
     }
 
 
@@ -133,7 +135,7 @@ async def mouser_search(description, footprint, max_price, min_qty, count=1, mod
         "mouser_search",
         model,
     )
-    return {"candidates": [_candidate(c, mouser_api.datasheet_url) for c in result.get("candidates", [])]}
+    return {"candidates": [_candidate(c, mouser_api.datasheet_url) for c in result.get("candidates", [])], "model": result.get("_model")}
 
 
 async def mouser_source(search_terms, footprint, model=None):
@@ -150,6 +152,7 @@ async def mouser_source(search_terms, footprint, model=None):
         "qty": int(result.get("qty") or 0),
         "price": None if result.get("price") is None else float(result["price"]),
         "datasheet_url": url,
+        "model": result.get("_model"),
     }
 
 

@@ -10,6 +10,7 @@ from typing import Literal
 from fastmcp import FastMCP
 
 from . import netlist
+from .config import active_model
 from .semantic import source_component as _source_component
 from .suppliers import sourcing
 
@@ -46,6 +47,13 @@ def create_mcp() -> FastMCP:
     async def find_datasheet(lcsc: str) -> dict:
         """Return the datasheet PDF URL for an LCSC C-number (e.g. C2040)."""
         return await sourcing.datasheet_fetch(lcsc)
+
+    @mcp.tool(annotations={"readOnlyHint": True})
+    def model_info() -> dict:
+        """Report which LLM answers requests right now: cloud (OpenRouter) or
+        local (Ollama), and the model name. The sourcing/SRC tools also include
+        the actually-used model under a `model` key in their results."""
+        return active_model()
 
     @mcp.tool(annotations={"readOnlyHint": True})
     def netlist_check(

@@ -40,11 +40,49 @@ def llm_provider() -> str:
     return "openrouter" if OPENROUTER_API_KEY else "ollama"
 
 
-def llm_settings(model: str | None = None) -> tuple[str, str, str]:
-    """Return (base_url, api_key, model) for the active provider."""
-    if OPENROUTER_API_KEY:
-        return "https://openrouter.ai/api/v1", OPENROUTER_API_KEY, model or DEFAULT_MODEL
+def _openrouter_settings(model: str | None) -> tuple[str, str, str]:
+    return "https://openrouter.ai/api/v1", OPENROUTER_API_KEY, model or DEFAULT_MODEL
+
+
+def _ollama_settings(model: str | None) -> tuple[str, str, str]:
     return OLLAMA_BASE_URL, os.environ.get("OLLAMA_API_KEY", "ollama"), model or OLLAMA_MODEL
+
+
+def llm_settings(model: str | None = None) -> tuple[str, str, str]:
+    """Return (base_url, api_key, model) for the preferred provider."""
+    if OPENROUTER_API_KEY:
+        return _openrouter_settings(model)
+    return _ollama_settings(model)
+
+
+def llm_provider_chain(model: str | None = None) -> list[tuple[str, str, str]]:
+    """Providers to try, in order: OpenRouter first if a key is set, then the
+    local Ollama fallback. Call sites walk this list so a missing *or broken*
+    OpenRouter key transparently falls back to the local model."""
+    if OPENROUTER_API_KEY:
+        return [_openrouter_settings(model), _ollama_settings(model)]
+    return [_ollama_settings(model)]
+
+
+def describe_model(base_url: str, model: str) -> dict:
+    """Human-readable summary of which model answered a request, so the MCP and
+    KiCad extension can show 'cloud (openrouter): gemini-3.1-flash-lite' or
+    'local (ollama): gemma4'."""
+    is_local = "openrouter" not in base_url
+    service = "ollama" if is_local else "openrouter"
+    return {
+        "location": "local" if is_local else "cloud",
+        "service": service,
+        "model": model,
+        "label": f"{'local' if is_local else 'cloud'} ({service}): {model}",
+    }
+
+
+def active_model() -> dict:
+    """The model that *would* answer right now (the chain's first choice). Used
+    for status display before any call runs (e.g. the extension header)."""
+    base_url, _, model = llm_settings()
+    return describe_model(base_url, model)
 
 # --- Supplier credentials ---------------------------------------------------
 MOUSER_API_KEY: str = os.environ.get("MOUSER_API_KEY") or os.environ.get("MOUSER_PART_API_KEY", "")

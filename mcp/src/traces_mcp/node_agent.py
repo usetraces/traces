@@ -11,7 +11,7 @@ import logging
 import os
 from pathlib import Path
 
-from .config import llm_settings
+from .config import describe_model, llm_provider_chain
 
 logger = logging.getLogger(__name__)
 
@@ -19,8 +19,26 @@ _AGENTS_DIR = Path(__file__).resolve().parent / "agents"
 
 
 async def run_node_agent(script: str, args: list[str], label: str, model: str | None = None) -> dict:
+    """Run a supplier sourcing agent, trying each provider in the chain in turn
+    (OpenRouter first if a key is set, then the local Ollama fallback). The
+    result dict is stamped with `_model` describing which provider answered."""
     script_path = _AGENTS_DIR / script
-    base_url, api_key, env_model = llm_settings(model)
+    providers = llm_provider_chain(model)
+    last_err: Exception | None = None
+    for i, (base_url, api_key, env_model) in enumerate(providers):
+        try:
+            result = await _run_once(script_path, args, label, base_url, api_key, env_model)
+            if isinstance(result, dict):
+                result["_model"] = describe_model(base_url, env_model)
+            return result
+        except Exception as exc:  # noqa: BLE001 — try the next provider in the chain
+            last_err = exc
+            if i + 1 < len(providers):
+                logger.warning("[%s] provider %s failed (%s); falling back to local model", label, base_url, exc)
+    raise RuntimeError(f"{label} agent failed on all providers: {last_err}")
+
+
+async def _run_once(script_path: Path, args: list[str], label: str, base_url: str, api_key: str, env_model: str) -> dict:
     proc = await asyncio.create_subprocess_exec(
         "node",
         str(script_path),

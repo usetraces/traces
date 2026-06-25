@@ -57,7 +57,16 @@ app.mount("/mcp", mcp_http)
 
 @app.get("/health")
 async def health():
-    return {"status": "online"}
+    from .config import active_model
+    return {"status": "online", "model": active_model()}
+
+
+@app.get("/model")
+async def model():
+    """The model that will answer requests right now (cloud vs local + name).
+    The KiCad extension shows this so you always know what's running."""
+    from .config import active_model
+    return active_model()
 
 
 @app.get("/jobs/{job_id}")

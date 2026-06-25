@@ -38,10 +38,12 @@ async def source_component(
 
     candidates: list[dict] = []
     errors: list[dict] = []
+    used_model: dict | None = None
     for supplier, payload, error in results:
         if error:
             errors.append({"supplier": supplier, "message": error})
             continue
+        used_model = used_model or (payload or {}).get("model")
         for candidate in (payload or {}).get("candidates", []):
             candidates.append({"supplier": supplier, **candidate})
 
@@ -53,7 +55,7 @@ async def source_component(
             "All selected suppliers failed: "
             + "; ".join(f"{e['supplier']}: {e['message']}" for e in errors)
         )
-    return {"candidates": candidates, "errors": errors}
+    return {"candidates": candidates, "errors": errors, "model": used_model}
 
 
 def normalize_suppliers(suppliers: list[str] | None) -> list[str]:
