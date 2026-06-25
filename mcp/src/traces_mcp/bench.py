@@ -40,17 +40,23 @@ MODELS = [
     {"id": "google/gemini-3.5-flash",            "price": (1.50, 9.00)},
     {"id": "openai/gpt-5-mini",                  "price": (0.25, 2.00)},
     {"id": "anthropic/claude-haiku-4.5",         "price": (1.00, 5.00)},
-    {"id": "meta-llama/llama-3.3-70b-instruct",  "price": (0.10, 0.32)},
+    {"id": "google/gemini-3.1-flash-lite",       "price": (0.25, 1.50)},  # what the extension ships
     {"id": "qwen/qwen3-235b-a22b-2507",          "price": (0.09, 0.10)},  # one Chinese model
 ]
 
 # --- Cases (JLCPCB search) --------------------------------------------------
-# `must` = substrings that should appear (lowercased) across the winning part's
-# name + specs. `footprint` must match the returned candidate's footprint.
+# `footprint` must match the returned candidate's footprint. `must` is a list of
+# requirement groups; a group passes if ANY of its alternatives appears across
+# the winning part's name + specs (normalised). Alternatives cover equivalent
+# spellings so a correct part isn't marked wrong over formatting — e.g. a model
+# that returns "0.1µF" instead of "100nF" still counts.
 CASES = [
-    {"desc": "100nF capacitor X7R",       "footprint": "0402", "must": ["100n", "x7r"]},
-    {"desc": "10k ohm resistor 1%",       "footprint": "0603", "must": ["10k"]},
-    {"desc": "low Rds N-channel MOSFET",  "footprint": "SOT-23", "must": ["mosfet"]},
+    {"desc": "100nF capacitor X7R", "footprint": "0402",
+     "must": [["100n", "0.1u", "0.1µ", ".1u", ".1µ"], ["x7r"]]},
+    {"desc": "10k ohm resistor 1%", "footprint": "0603",
+     "must": [["10k", "10000", "10 k", "10kohm", "10kω"]]},
+    {"desc": "low Rds N-channel MOSFET", "footprint": "SOT-23",
+     "must": [["mosfet", "n-ch", "nch", "n-channel", "nmos"]]},
 ]
 
 TRIALS = 3
@@ -94,15 +100,17 @@ async def _run_case(model_id: str, case: dict) -> dict:
     usage = payload.get("usage") or {}
     elapsed = payload.get("elapsed_ms", wall_ms)
 
-    # --- accuracy: 3 equal checks (returned / footprint / keywords) ---
-    score, returned = 0.0, bool(cands and cands[0].get("part_number"))
+    # --- accuracy: 3 equal checks (returned / footprint / keyword groups) ---
+    c = cands[0] if cands else None
+    if isinstance(c, str):           # some models emit a bare part-number string
+        c = {"part_number": c}
+    score, returned = 0.0, bool(isinstance(c, dict) and c.get("part_number"))
     if returned:
-        c = cands[0]
         score += 1 / 3
         if _norm(case["footprint"]) in _norm(c.get("footprint", "")):
             score += 1 / 3
         hay = _norm(c.get("name", "") + " " + " ".join(c.get("specs", []) or []))
-        if all(_norm(m) in hay for m in case["must"]):
+        if all(any(_norm(alt) in hay for alt in group) for group in case["must"]):
             score += 1 / 3
 
     price = next((m["price"] for m in MODELS if m["id"] == model_id), (0.0, 0.0))
