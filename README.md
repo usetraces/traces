@@ -4,6 +4,8 @@ Open-source tooling for KiCad: semantic component sourcing and schematic review
 that runs entirely on **your** machine against **your** API keys. No accounts, no
 hosted backend, no billing.
 
+![traces sourcing parts inside KiCad](demo.webp)
+
 There are three tools:
 
 1. **mcp** — a local sourcing server you install into your agent
