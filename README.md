@@ -1,8 +1,8 @@
-# traces — AI for the EDA
+# traces — supercharged ee tools
 
-Open-source AI tooling for KiCad: semantic component sourcing and schematic
-review that runs entirely on **your** machine against **your** API keys. No
-accounts, no hosted backend, no billing.
+Open-source tooling for KiCad: semantic component sourcing and schematic review
+that runs entirely on **your** machine against **your** API keys. No accounts, no
+hosted backend, no billing.
 
 There are three tools:
 
