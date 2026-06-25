@@ -14,3 +14,13 @@ node_modules/
 
 # os / editor
 .DS_Store
+.history/
+
+# kicad (local state, locks, autosave, backups, tool-generated datasheets)
+*.kicad_prl
+*.lck
+_autosave-*
+fp-info-cache/
+*-backups/
+demo/Untitled/
+demo/datasheets/
