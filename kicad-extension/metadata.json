@@ -1,0 +1,29 @@
+{
+  "$schema": "https://go.kicad.org/pcm/schemas/v2",
+  "name": "traces",
+  "description": "Component sourcing, schematic metadata editing, datasheets, and semantic netlist checks.",
+  "description_full": "traces opens from the KiCad PCB Editor and works with the project's schematic. Source components from JLCPCB/LCSC, Digi-Key, and Mouser, edit component properties, import symbols and footprints, and run semantic netlist checks.\n\nRequires a separately installed local traces server, Python 3.11+, uv, and Node.js 20+. Start the server before opening the plugin. Inference uses either local Ollama or your OpenRouter API key; supplier requests use external services. Some suppliers require your own API keys. No traces account is required.\n\nThis initial PCM release targets KiCad 10 on macOS and is marked testing. See the installation guide for backend setup and migration from a manually installed plugin.",
+  "identifier": "com.github.usetraces.traces",
+  "type": "plugin",
+  "author": {
+    "name": "traces",
+    "contact": {"web": "https://github.com/usetraces/traces"}
+  },
+  "license": "MIT",
+  "resources": {
+    "homepage": "https://github.com/usetraces/traces",
+    "documentation": "https://github.com/usetraces/traces/blob/kicad-v2.0.0/kicad-extension/README.md",
+    "issues": "https://github.com/usetraces/traces/issues"
+  },
+  "tags": ["sourcing", "schematic", "bom"],
+  "versions": [
+    {
+      "version": "2.0.0",
+      "status": "testing",
+      "kicad_version": "10.0",
+      "kicad_version_max": "10.0",
+      "runtime": "swig",
+      "platforms": ["macos"]
+    }
+  ]
+}

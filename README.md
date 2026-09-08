@@ -139,6 +139,10 @@ model list, cases, and trial count at the top of `mcp/src/traces_mcp/bench.py`.
 
 ## 2. kicad extension
 
+For the KiCad Plugin and Content Manager package, see the
+[installation guide](kicad-extension/README.md). Release maintainers can follow
+the [PCM submission guide](kicad-extension/SUBMISSION.md).
+
 A KiCad 10 PCB-editor plugin that reconciles schematic metadata, sources parts
 into schematic properties, fetches datasheets, pulls KiCad symbols/footprints
 from LCSC, and runs SRC — all against the local server above.
